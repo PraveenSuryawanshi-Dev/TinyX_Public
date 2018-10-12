@@ -30,10 +30,10 @@ using namespace std;
 
 char *device_location = "hd0.bin";
 
-int BOOT_BLOCK_OFFSET = 0;
-int SUPER_BLOCK_OFFSET = 0;
-int INODE_BLOCK_OFFSET = 0;
-int DATA_BLOCK_OFFSET = 0;
+#define BOOT_BLOCK_OFFSET  0
+#define SUPER_BLOCK_OFFSET BOOT_BLOCK_OFFSET + sizeof(SUPER_BLOCK)
+#define INODE_BLOCK_OFFSET SUPER_BLOCK_OFFSET + BLOCK_SIZE
+#define DATA_BLOCK_OFFSET  (ceil((int)(MAX_INODES / (int)((BLOCK_SIZE) / sizeof(DISK_INODE)))) * BLOCK_SIZE) + INODE_BLOCK_OFFSET
 
 
 
@@ -231,7 +231,7 @@ void* run_async_controller_write(void *args)
 	packet = (PACKET*)args;
 	controller_write(packet->device, packet->block, packet->data);
 	
-	return;
+	return 0;
 }
 
 
@@ -284,7 +284,7 @@ void *run_async_controller_read(void *args)
 
 	packet = (PACKET*)args;
 	controller_read(packet->device, packet->block, packet->data);
-	return ;
+	return 0;
 }
 
 
@@ -334,7 +334,7 @@ void async_controller_read_initialization(DEVICE device, int block, char *data)
 /************************************************************/
 /*  BUFFER CACHE											*/
 /*  simple 'C' implementation of buffer cache Driver		*/
-/*	simulation	using   link list.		                    */
+/*	simulation	using   doubly circular link list.		    */
 /************************************************************/
 
 
@@ -366,23 +366,41 @@ typedef enum _buffer_status_
 
 } BUFFER_STATUS;
 
+
+
+
+
+/*--------------------------------------------------------------
+*   typedef struct _diskblock_buffer_ stores the file  identification
+*	information
+*/
 typedef struct _diskblock_buffer_
 {
+	/*part 1 header*/
+	char data[BLOCK_SIZE]; /*data of file from disk to memory*/
 
-	unsigned int mod;
-	char data[BLOCK_SIZE];
+	/*part 2 header DISKBLOCK_BUFFER of below is the auxillary data*/
 
-	DEVICE device;
-	unsigned int block;
-	BUFFER_STATUS status;
+	unsigned int mod;		/*where the block is kept it buffer cache*/
+	DEVICE device;			/*which device to do operation*/
+	unsigned int block;		/*which block*/
+	BUFFER_STATUS status;	/*status of buffer cache*/
 
 
+	/*pointer for linkist next and previous buffer linking*/
 	struct _diskblock_buffer_ *diskblock_next_buffer;
 	struct _diskblock_buffer_ *diskblock_previous_buffer;
+
+	/*linking those buffer only which are free on buffer cache*/
 	struct _diskblock_buffer_ *diskblock_freelist_next_buffer;
 	struct _diskblock_buffer_ *diskblock_freelist_previous_buffer;
 
 } DISKBLOCK_BUFFER;
+
+
+
+
+
 
 DISKBLOCK_BUFFER *diskblock_freelist = NULL;
 
@@ -394,10 +412,24 @@ DISKBLOCK_BUFFER diskblock_mod_buffer[MAX_DISKBLOCK_BUFFER_HEADER];
 
 
 
+/*******************************************************************
+* NAME :           put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
+*
+* DESCRIPTION :    put's the respective buffer to hash queue
+* INPUTS :
+*       PARAMETERS:
+*           DISKBLOCK_BUFFER     *buffer to put in hash queue.
+* OUTPUTS : modify the hash queue buffer pool.
+* NOTES :
+*/
 void put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
 {
-	int _goto = buffer->block % MAX_DISKBLOCK_BUFFER_HEADER;
-	DISKBLOCK_BUFFER *last = diskblock_mod_buffer[_goto].diskblock_previous_buffer;
+	int _goto = 0;
+	DISKBLOCK_BUFFER *last = NULL;
+
+	_goto = buffer->block % MAX_DISKBLOCK_BUFFER_HEADER;
+
+	last = diskblock_mod_buffer[_goto].diskblock_previous_buffer;
 
 	if (diskblock_mod_buffer[_goto].diskblock_next_buffer == NULL)
 	{
@@ -422,10 +454,23 @@ void put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
 
 }
 
+
+
+
+
+/*******************************************************************
+* NAME :           put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
+*
+* DESCRIPTION :    put's the respective buffer to free list
+* INPUTS :
+*       PARAMETERS:
+*           DISKBLOCK_BUFFER     *buffer  put to freelist in hash queue.
+* OUTPUTS : modify the free list.
+* NOTES :
+*/
 void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 {
-
-
+	DISKBLOCK_BUFFER *last = NULL;
 	if (diskblock_freelist == NULL)
 	{
 		diskblock_freelist = buffer;
@@ -434,7 +479,7 @@ void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 	}
 	else
 	{
-		DISKBLOCK_BUFFER *last = diskblock_freelist->diskblock_freelist_previous_buffer;
+		last = diskblock_freelist->diskblock_freelist_previous_buffer;
 
 		last->diskblock_freelist_next_buffer = buffer;
 		buffer->diskblock_freelist_previous_buffer = last;
@@ -445,10 +490,12 @@ void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 
 }
 
-void init_hashQueuepool()
+void init_hash_queue_pool()
 {
 	int i = 0;
 
+	/*initialization for buffer all
+	hash queue header*/
 	for (i = 0; i < MAX_DISKBLOCK_BUFFER_HEADER; i++)
 	{
 		diskblock_mod_buffer[i].mod = i;
@@ -457,8 +504,9 @@ void init_hashQueuepool()
 		diskblock_mod_buffer[i].block = 0;
 		memset(diskblock_mod_buffer[i].data, 0, BLOCK_SIZE);
 
-		diskblock_mod_buffer[i].device.major = 0;
-		diskblock_mod_buffer[i].device.minor = 0;
+		diskblock_mod_buffer[i].device.major = '0';
+		diskblock_mod_buffer[i].device.minor = '0';
+		diskblock_mod_buffer[i].device.fp = NULL;
 
 		diskblock_mod_buffer[i].diskblock_freelist_next_buffer = NULL;
 		diskblock_mod_buffer[i].diskblock_freelist_previous_buffer = NULL;
@@ -467,6 +515,8 @@ void init_hashQueuepool()
 		diskblock_mod_buffer[i].diskblock_previous_buffer = NULL;
 	}
 
+
+	/*initialization for all disk block buffer*/
 	for (i = 0; i < MAX_DISKBLOCK_BUFFER; i++)
 	{
 		diskblock_buffer[i].mod = 0;
@@ -476,8 +526,9 @@ void init_hashQueuepool()
 
 		memset(diskblock_buffer[i].data, 0, BLOCK_SIZE);
 
-		diskblock_buffer[i].device.major = 0;
-		diskblock_buffer[i].device.minor = 0;
+		diskblock_buffer[i].device.major = '0';
+		diskblock_buffer[i].device.minor = '0';
+		diskblock_buffer[i].device.fp = NULL;
 
 		diskblock_buffer[i].diskblock_freelist_next_buffer = NULL;
 		diskblock_buffer[i].diskblock_freelist_previous_buffer = NULL;
@@ -503,6 +554,16 @@ void init_hashQueuepool()
 
 
 
+
+
+/*******************************************************************
+* NAME :           display_diskblock_hashpool(void)
+*
+* DESCRIPTION :   display the buffer cache pool list
+* INPUTS :	void
+* OUTPUTS : prints the buffer pool list.
+* NOTES :
+*/
 void display_diskblock_hashpool(void)
 {
 
@@ -517,7 +578,8 @@ void display_diskblock_hashpool(void)
 		printf("\n[MOD %d]<-->", i);
 		do
 		{
-			if (diskblock_mod_buffer[i].diskblock_next_buffer == NULL) break;
+			if (diskblock_mod_buffer[i].diskblock_next_buffer == NULL) 
+				break;
 
 			printf("[%d]<-->", temp->block);
 			temp = temp->diskblock_next_buffer;
@@ -529,6 +591,16 @@ void display_diskblock_hashpool(void)
 }
 
 
+
+
+/*******************************************************************
+* NAME :           display_diskblock_freelist(void)
+*
+* DESCRIPTION :   display the free buffer pool list
+* INPUTS :	void
+* OUTPUTS : prints the free buffer pool list.
+* NOTES :
+*/
 void display_diskblock_freelist(void)
 {
 	DISKBLOCK_BUFFER *temp = diskblock_freelist;
@@ -836,7 +908,8 @@ void bwrite(DISKBLOCK_BUFFER *buffer)
 
 /*---- BUFFER CACHE DRIVER -----------------------------------------
 *   end of implementation of buffer cache Driver.
-*   NOTE : it just a simulation of buffer cache Driver using simple 'C' program.
+*   NOTE : it just a simulation of buffer cache Driver using simple
+*	'C' program.
 *-------------------------------------------------------------------*/
 
 
@@ -1688,7 +1761,6 @@ void mkfs(char *device_location)
 
 
 	/*Create Super Block*/
-	SUPER_BLOCK_OFFSET = BOOT_BLOCK_OFFSET + sizeof(super_block);
 	super_block.sizeof_filesystem = sizeof(boot_block) + sizeof(super_block) + sizeof(inode_list) + (sizeof(data_block)*MAX_DATABLOCKS);
 	super_block.number_of_free_blocks_in_filesystem = MAX_DATABLOCKS;
 	super_block.list_of_free_blocks_in_filesystem[MAX_FREE_BLOCKS_AVAILABLE];
@@ -1886,10 +1958,6 @@ int Open(char *filePath, FILE_ACCESS_PERMISSION permission, int filePermission)
 
 int main()
 {
-	BOOT_BLOCK_OFFSET = 0;
-	SUPER_BLOCK_OFFSET = BLOCK_SIZE;
-	INODE_BLOCK_OFFSET = SUPER_BLOCK_OFFSET + BLOCK_SIZE;
-	DATA_BLOCK_OFFSET = (ceil((int)(MAX_INODES / (int)((BLOCK_SIZE) / sizeof(DISK_INODE)))) * BLOCK_SIZE) + INODE_BLOCK_OFFSET;
 
 	printf("INCORE INODE SIZE %d\n", sizeof(INCORE_INODE));
 	printf("DISK INODE %d\n", sizeof(DISK_INODE));
