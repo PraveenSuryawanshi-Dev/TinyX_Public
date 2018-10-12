@@ -1,0 +1,40 @@
+﻿  main.cpp
+d:\tf\tinyx_public\unixos\main.cpp(72): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 2 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(72): warning C4313: 'printf': '%d' in format string conflicts with argument 2 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(72): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(72): warning C4313: 'printf': '%d' in format string conflicts with argument 3 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(89): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+d:\tf\tinyx_public\unixos\main.cpp(93): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 2 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(93): warning C4313: 'printf': '%d' in format string conflicts with argument 2 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(93): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(93): warning C4313: 'printf': '%d' in format string conflicts with argument 3 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(107): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 2 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(107): warning C4313: 'printf': '%d' in format string conflicts with argument 2 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(107): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(107): warning C4313: 'printf': '%d' in format string conflicts with argument 3 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(118): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+d:\tf\tinyx_public\unixos\main.cpp(124): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 2 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(124): warning C4313: 'printf': '%d' in format string conflicts with argument 2 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(124): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(124): warning C4313: 'printf': '%d' in format string conflicts with argument 3 of type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(1369): warning C4101: 'data': unreferenced local variable
+d:\tf\tinyx_public\unixos\main.cpp(1386): warning C4101: 'out_block_number': unreferenced local variable
+d:\tf\tinyx_public\unixos\main.cpp(1386): warning C4101: 'offset': unreferenced local variable
+d:\tf\tinyx_public\unixos\main.cpp(1386): warning C4101: 'out_bytes_offset_in_block': unreferenced local variable
+d:\tf\tinyx_public\unixos\main.cpp(1386): warning C4101: 'out_read_head_block': unreferenced local variable
+d:\tf\tinyx_public\unixos\main.cpp(1590): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'unsigned __int64'
+  d:\tf\tinyx_public\unixos\main.cpp(1590): note: consider using '%lld' in the format string
+  d:\tf\tinyx_public\unixos\main.cpp(1590): note: consider using '%Id' in the format string
+  d:\tf\tinyx_public\unixos\main.cpp(1590): note: consider using '%I64d' in the format string
+d:\tf\tinyx_public\unixos\main.cpp(1728): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+d:\tf\tinyx_public\unixos\main.cpp(1730): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'size_t'
+  d:\tf\tinyx_public\unixos\main.cpp(1730): note: consider using '%zd' in the format string
+d:\tf\tinyx_public\unixos\main.cpp(1731): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'size_t'
+  d:\tf\tinyx_public\unixos\main.cpp(1731): note: consider using '%zd' in the format string
+d:\tf\tinyx_public\unixos\main.cpp(1732): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'unsigned __int64'
+  d:\tf\tinyx_public\unixos\main.cpp(1732): note: consider using '%lld' in the format string
+  d:\tf\tinyx_public\unixos\main.cpp(1732): note: consider using '%Id' in the format string
+  d:\tf\tinyx_public\unixos\main.cpp(1732): note: consider using '%I64d' in the format string
+d:\tf\tinyx_public\unixos\main.cpp(1748): warning C4477: 'printf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'FILE *'
+d:\tf\tinyx_public\unixos\main.cpp(1748): warning C4313: 'printf': '%d' in format string conflicts with argument 1 of type 'FILE *'
+  UnixOs.vcxproj -> D:\TF\TinyX_Public\x64\Debug\UnixOs.exe
