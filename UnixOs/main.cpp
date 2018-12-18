@@ -87,6 +87,19 @@ typedef struct _packet_
 * NOTES :         
 */
 
+
+/*******************************************************************
+* NAME :           move_arm_of_hardisk(DEVICE device, int block_no)
+*
+* DESCRIPTION :     Moves the Arm of Disk ie. increment and decrement tthe FILE pointer.
+*
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+* OUTPUTS : move the file pointer to block.
+* NOTES :         
+*/
 void move_arm_of_hardisk(DEVICE device, int block_no)
 {
 	int status = 1;
@@ -208,6 +221,19 @@ void controller_read(DEVICE device, int block, char *data)
 * NOTES :
 */
 
+
+
+/*******************************************************************
+* NAME :           run_async_controller_write(void *args)
+*
+* DESCRIPTION :     write the data to block asynchronously
+*
+* INPUTS :
+*       PARAMETERS:
+*           void *args thread data parameters type of (PACKET*)args
+* OUTPUTS : write the data async.
+* NOTES :
+*/
 void* run_async_controller_write(void *args)
 {
 	PACKET *packet = { 0 };
@@ -256,6 +282,20 @@ void async_controller_write_initialization(DEVICE device, int block, char *data)
 * NOTES :
 */
 
+
+
+
+/*******************************************************************
+* NAME :           run_async_controller_read(void *args)
+*
+* DESCRIPTION :     read the data to block asynchronously
+*
+* INPUTS :
+*       PARAMETERS:
+*           void *args thread data parameters type of (PACKET*)args
+* OUTPUTS : read the data async.
+* NOTES :
+*/
 void *run_async_controller_read(void *args)
 {
 
@@ -356,6 +396,11 @@ typedef struct _diskblock_buffer_
 
 } DISKBLOCK_BUFFER;
 
+
+
+
+
+
 DISKBLOCK_BUFFER *diskblock_freelist = NULL;
 
 DISKBLOCK_BUFFER diskblock_buffer[MAX_DISKBLOCK_BUFFER];
@@ -373,6 +418,16 @@ DISKBLOCK_BUFFER diskblock_mod_buffer[MAX_DISKBLOCK_BUFFER_HEADER];
 * NOTES :
 */
 
+/*******************************************************************
+* NAME :           put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
+*
+* DESCRIPTION :    put's the respective buffer to hash queue
+* INPUTS :
+*       PARAMETERS:
+*           DISKBLOCK_BUFFER     *buffer to put in hash queue.
+* OUTPUTS : modify the hash queue buffer pool.
+* NOTES :
+*/
 void put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
 {
 	int _goto = 0;
@@ -509,6 +564,16 @@ void init_hash_queue_pool()
 * NOTES :
 */
 
+
+
+/*******************************************************************
+* NAME :           display_diskblock_hashpool(void)
+*
+* DESCRIPTION :   display the buffer cache pool list
+* INPUTS :	void
+* OUTPUTS : prints the buffer pool list.
+* NOTES :
+*/
 void display_diskblock_hashpool(void)
 {
 
