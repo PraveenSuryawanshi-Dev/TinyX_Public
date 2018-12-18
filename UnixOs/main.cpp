@@ -1,8 +1,21 @@
+/************************************************************
+*   TinyX Operating System									*
+*   @author : Praveen Suresh Suryawanshi					*
+*   @mail : suryawanshi.praveen007@gmail.com                *
+*************************************************************/
+
+
+/*H******************************************************
+*
+  header declaration. 
+  http://syque.com/cstyle/ch4.5.htm
+*
+*H*/
+
 #include <stdio.h>
 #include <fcntl.h>
 #include<malloc.h>
 #include<math.h>
-/************************************************** INCLUDED HEADERS *************************************************/
 #include<stdlib.h>
 #include<string.h>
 #include<sys/types.h>
@@ -12,142 +25,218 @@
 
 using namespace std;
 
-/************************************************** GLOBAL VARIABLES *************************************************/
-
 #define BLOCK_SIZE 1024
 
 char *device_location = "hd0.bin";
 
-int BOOT_BLOCK_OFFSET = 0;
-int SUPER_BLOCK_OFFSET = 0;
-int INODE_BLOCK_OFFSET = 0;
-int DATA_BLOCK_OFFSET = 0;
+#define BOOT_BLOCK_OFFSET  0
+#define SUPER_BLOCK_OFFSET BOOT_BLOCK_OFFSET + sizeof(SUPER_BLOCK)
+#define INODE_BLOCK_OFFSET SUPER_BLOCK_OFFSET + BLOCK_SIZE
+#define DATA_BLOCK_OFFSET  (ceil((int)(MAX_INODES / (int)((BLOCK_SIZE) / sizeof(DISK_INODE)))) * BLOCK_SIZE) + INODE_BLOCK_OFFSET
 
 
+/************************************************************/
+/*  DISK DEVICE DRIVER										*/
+/*  simple 'C' implementation of Disk Device Driver			*/
+/*	simulation	using   File IO.		                    */
+/************************************************************/
+
+/*/
+* global variable for storing current buffer pointer , or current offset of disk arm.
+*/
+
+static int  g_current_arm_position = 0;
+/**/
+
+/*--------------------------------------------------------------
+*   typedef struct _device_ stores the device identification
+*	information
+*/
 
 typedef struct _device_
 {
-	FILE* major;
-	FILE* minor;
+	char major; /*keeps the major number of device identification*/
+	char minor;	/*keeps the minor number of device identification*/
 
+	FILE *fp;  /*keeps the file pointer for above device*/
 } DEVICE;
 
-/************************************************** GLOBAL VARIABLES *************************************************/
-
-
-
-
-
-
-
-
-
-/************************************************** DISK DEVICE DRIVER *************************************************/
-
-static int  current_arm_position = 0;
-
+/*--------------------------------------------------------------
+*   typedef struct _device_ stores the device identification
+*	information
+*	packet data to write on device.
+*/
 
 typedef struct _packet_
 {
-	DEVICE device;
-	int block;
-	char *data;
+	DEVICE device;	/*on which deive to write the packet*/
+	int block;		/*on that device which block to write*/
+	char *data;		/*data to write on that device*/
 } PACKET;
 
+/*******************************************************************
+* NAME :           move_arm_of_hardisk(DEVICE device, int block_no)
+*
+* DESCRIPTION :     Moves the Arm of Disk ie. increment and decrement tthe FILE pointer.
+*
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+* OUTPUTS : move the file pointer to block.
+* NOTES :         
+*/
 
 void move_arm_of_hardisk(DEVICE device, int block_no)
 {
 	int status = 1;
-
-	int whereToMoveArmHand = block_no*BLOCK_SIZE;
+	int where_to_move_arm_hand = 0;
 	int no_of_bytes_to_move = 0;
 
+	where_to_move_arm_hand = block_no * BLOCK_SIZE;
 
-	if (current_arm_position != whereToMoveArmHand)
+	if (g_current_arm_position != where_to_move_arm_hand)
 	{
-		no_of_bytes_to_move = whereToMoveArmHand - current_arm_position;
-		status =  fseek(device.major, no_of_bytes_to_move, SEEK_CUR);
+		no_of_bytes_to_move = where_to_move_arm_hand - g_current_arm_position;
+		status =  fseek(device.fp, no_of_bytes_to_move, SEEK_CUR);
+		
 		if (status != 0)
 		{
-			printf("\nError : Failed to seek  block %d  on [ major number :  %d  minor number : %d ]", block_no, device.major, device.minor);
+			printf("\nError : failed to seek  block %d  on [ major number :  %d  minor number : %d ]", block_no, device.major, device.minor);
 			exit(0);
 		}
 
-		current_arm_position = ftell(device.major);
+		g_current_arm_position = ftell(device.fp);
 		return;
 	}
-
-	current_arm_position = whereToMoveArmHand;
 }
 
-
+/*******************************************************************
+* NAME :           controller_write(DEVICE device, int block, char *data)
+*
+* DESCRIPTION :     write the data to block
+*
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+*			char *data						 data to write on the block
+* OUTPUTS : write the data to data block.
+* NOTES :
+*/
 
 void controller_write(DEVICE device, int block, char *data)
 {
 	int status = 1;
+	int no_of_bytes_written = 0;
+
 	move_arm_of_hardisk(device, block);
-	int no_of_bytes_written = fwrite( data, strlen(data), strlen(data),device.major);
+
+	no_of_bytes_written = fwrite( data, strlen(data), strlen(data),device.fp);
 
 	if (no_of_bytes_written == 0)
 	{
-		printf("\nError : Failed to write  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
-		printf("\nCurrent disk arm hand position is : %d ", current_arm_position);
+		printf("\nError : failed to write  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
+		printf("\ncurrent disk arm hand position is : %d ", g_current_arm_position);
+		exit(0);
 		return;
 	}
 
 
 	if (no_of_bytes_written != BLOCK_SIZE)
 	{
-		printf("\nBYTES WROTE  %d", no_of_bytes_written);
+		status = fseek(device.fp, (BLOCK_SIZE - no_of_bytes_written), SEEK_CUR);
+
+		if (status != 0)
+		{
+			printf("\nError : failed to seek  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
+			exit(0);
+		}
 	}
 
-	status = fseek(device.major, (BLOCK_SIZE - no_of_bytes_written), SEEK_CUR);
-	if (status != 0)
-	{
-		printf("\nError : Failed to seek  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
-		exit(0);
-	}
-	current_arm_position = ftell(device.major);
-	printf("\narm moved current position i s : %d ", current_arm_position);
+	g_current_arm_position = ftell(device.fp);
 }
+
+/*******************************************************************
+* NAME :           controller_read(DEVICE device, int block, char *data)
+*
+* DESCRIPTION :     read the data to block
+*
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+*			char *data						 data to write on the block
+* OUTPUTS : reads the block and fill in *data.
+* NOTES :
+*/
 
 void controller_read(DEVICE device, int block, char *data)
 {
+
+	int no_of_bytes_readed = 0;
+
 	move_arm_of_hardisk(device, block);
 
-	int no_of_bytes_readed = fread( data, BLOCK_SIZE, BLOCK_SIZE,device.major);
-
-	printf("\n no_of_bytes_readed is %d ", no_of_bytes_readed);
+	no_of_bytes_readed = fread( data, BLOCK_SIZE, BLOCK_SIZE,device.fp);
 
 	if (no_of_bytes_readed == 0)
 	{
-		printf("\nError : Failed to read  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
-		printf("\nCurrent disk arm hand position is : %d ", current_arm_position);
+		printf("\nError : failed to read  block %d  on [ major number :  %d  minor number : %d ]", block, device.major, device.minor);
+		printf("\ninfo: current disk arm hand position is : %d ", g_current_arm_position);
+		exit(0);
 		return;
 	}
 
 
 	if (no_of_bytes_readed != BLOCK_SIZE)
 	{
-		printf("\nBYTES READ  %d", no_of_bytes_readed);
+		printf("\ninfo: bytes read  %d", no_of_bytes_readed);
 	}
 
-	printf("\narm moved current position i s : %d ", current_arm_position);
 }
 
+/*******************************************************************
+* NAME :           run_async_controller_write(void *args)
+*
+* DESCRIPTION :     write the data to block asynchronously
+*
+* INPUTS :
+*       PARAMETERS:
+*           void *args thread data parameters type of (PACKET*)args
+* OUTPUTS : write the data async.
+* NOTES :
+*/
 
 void* run_async_controller_write(void *args)
 {
-	PACKET *packet = (PACKET*)args;
+	PACKET *packet = { 0 };
+
+	packet = (PACKET*)args;
 	controller_write(packet->device, packet->block, packet->data);
-	return NULL;
+	
+	return 0;
 }
-void async_controller_write(DEVICE device, int block, char *data)
+
+/*******************************************************************
+* NAME :           async_controller_write_initialization(void *args)
+*
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+*			char *data						 data to write on the block
+* OUTPUTS : intialization and write the block.
+* NOTES :
+*/
+
+void async_controller_write_initialization(DEVICE device, int block, char *data)
 {
 
 	PACKET packet;
 	packet.device.major = device.major;
 	packet.device.minor = device.minor;
+	packet.device.fp = device.fp;
 	packet.block = block;
 	packet.data = data;
 
@@ -155,37 +244,69 @@ void async_controller_write(DEVICE device, int block, char *data)
 	std::thread thread(&run_async_controller_write, &packet);
 }
 
+/*******************************************************************
+* NAME :           run_async_controller_read(void *args)
+*
+* DESCRIPTION :     read the data to block asynchronously
+*
+* INPUTS :
+*       PARAMETERS:
+*           void *args thread data parameters type of (PACKET*)args
+* OUTPUTS : read the data async.
+* NOTES :
+*/
 
 void *run_async_controller_read(void *args)
 {
 
-	PACKET *packet = (PACKET*)args;
+	PACKET *packet = { 0 };
+
+	packet = (PACKET*)args;
 	controller_read(packet->device, packet->block, packet->data);
-	return NULL;
+	return 0;
 }
 
-void async_controller_read(DEVICE device, int block, char *data)
+/*******************************************************************
+* NAME :           async_controller_read_initialization(DEVICE device, int block, char *data)
+*
+* DESCRIPTION :     read the data to block asynchronously intialization
+* INPUTS :
+*       PARAMETERS:
+*           DEVICE     device                device on to move the file io operation.
+*			int block_no					 on which block to move the file pointer.
+*			char *data						 data to read on the block
+* OUTPUTS : read the block asynchronously.
+* NOTES :
+*/
+
+void async_controller_read_initialization(DEVICE device, int block, char *data)
 {
 
 	PACKET packet;
 	packet.device.major = device.major;
 	packet.device.minor = device.minor;
+	packet.device.fp = device.fp;
 	packet.block = block;
 	packet.data = data;
 
 	std::thread thread(&run_async_controller_read, &packet);
 }
 
-/************************************************** DISK DEVICE DRIVER *************************************************/
+/*---- DISK DEVICE DRIVER -----------------------------------------
+*   end of implementation of Disk Device Driver.
+*   NOTE : it just a simulation of Disk Device Driver using simple 'C' program.
+*-------------------------------------------------------------------*/
 
 
 
 
 
+/************************************************************/
+/*  BUFFER CACHE											*/
+/*  simple 'C' implementation of buffer cache Driver		*/
+/*	simulation	using   doubly circular link list.		    */
+/************************************************************/
 
-
-
-/*************************************************** BUFFER CACHE******************************************************/
 
 
 #define MAX_DISKBLOCK_BUFFER 50
@@ -207,19 +328,29 @@ typedef enum _buffer_status_
 
 } BUFFER_STATUS;
 
+/*--------------------------------------------------------------
+*   typedef struct _diskblock_buffer_ stores the file  identification
+*	information
+*/
+
 typedef struct _diskblock_buffer_
 {
+	/*part 1 header*/
+	char data[BLOCK_SIZE]; /*data of file from disk to memory*/
 
-	unsigned int mod;
-	char data[BLOCK_SIZE];
+	/*part 2 header DISKBLOCK_BUFFER of below is the auxillary data*/
 
-	DEVICE device;
-	unsigned int block;
-	BUFFER_STATUS status;
+	unsigned int mod;		/*where the block is kept it buffer cache*/
+	DEVICE device;			/*which device to do operation*/
+	unsigned int block;		/*which block*/
+	BUFFER_STATUS status;	/*status of buffer cache*/
 
 
+	/*pointer for linkist next and previous buffer linking*/
 	struct _diskblock_buffer_ *diskblock_next_buffer;
 	struct _diskblock_buffer_ *diskblock_previous_buffer;
+
+	/*linking those buffer only which are free on buffer cache*/
 	struct _diskblock_buffer_ *diskblock_freelist_next_buffer;
 	struct _diskblock_buffer_ *diskblock_freelist_previous_buffer;
 
@@ -231,14 +362,25 @@ DISKBLOCK_BUFFER diskblock_buffer[MAX_DISKBLOCK_BUFFER];
 
 DISKBLOCK_BUFFER diskblock_mod_buffer[MAX_DISKBLOCK_BUFFER_HEADER];
 
-
-
-
+/*******************************************************************
+* NAME :           put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
+*
+* DESCRIPTION :    put's the respective buffer to hash queue
+* INPUTS :
+*       PARAMETERS:
+*           DISKBLOCK_BUFFER     *buffer to put in hash queue.
+* OUTPUTS : modify the hash queue buffer pool.
+* NOTES :
+*/
 
 void put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
 {
-	int _goto = buffer->block % MAX_DISKBLOCK_BUFFER_HEADER;
-	DISKBLOCK_BUFFER *last = diskblock_mod_buffer[_goto].diskblock_previous_buffer;
+	int _goto = 0;
+	DISKBLOCK_BUFFER *last = NULL;
+
+	_goto = buffer->block % MAX_DISKBLOCK_BUFFER_HEADER;
+
+	last = diskblock_mod_buffer[_goto].diskblock_previous_buffer;
 
 	if (diskblock_mod_buffer[_goto].diskblock_next_buffer == NULL)
 	{
@@ -263,10 +405,20 @@ void put_buffer_to_respective_mod(DISKBLOCK_BUFFER *buffer)
 
 }
 
+/*******************************************************************
+* NAME :           put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
+*
+* DESCRIPTION :    put's the respective buffer to free list
+* INPUTS :
+*       PARAMETERS:
+*           DISKBLOCK_BUFFER     *buffer  put to freelist in hash queue.
+* OUTPUTS : modify the free list.
+* NOTES :
+*/
+
 void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 {
-
-
+	DISKBLOCK_BUFFER *last = NULL;
 	if (diskblock_freelist == NULL)
 	{
 		diskblock_freelist = buffer;
@@ -275,7 +427,7 @@ void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 	}
 	else
 	{
-		DISKBLOCK_BUFFER *last = diskblock_freelist->diskblock_freelist_previous_buffer;
+		last = diskblock_freelist->diskblock_freelist_previous_buffer;
 
 		last->diskblock_freelist_next_buffer = buffer;
 		buffer->diskblock_freelist_previous_buffer = last;
@@ -286,10 +438,12 @@ void put_buffer_to_freelist(DISKBLOCK_BUFFER *buffer)
 
 }
 
-void init_hashQueuepool()
+void init_hash_queue_pool()
 {
 	int i = 0;
 
+	/*initialization for buffer all
+	hash queue header*/
 	for (i = 0; i < MAX_DISKBLOCK_BUFFER_HEADER; i++)
 	{
 		diskblock_mod_buffer[i].mod = i;
@@ -298,8 +452,9 @@ void init_hashQueuepool()
 		diskblock_mod_buffer[i].block = 0;
 		memset(diskblock_mod_buffer[i].data, 0, BLOCK_SIZE);
 
-		diskblock_mod_buffer[i].device.major = 0;
-		diskblock_mod_buffer[i].device.minor = 0;
+		diskblock_mod_buffer[i].device.major = '0';
+		diskblock_mod_buffer[i].device.minor = '0';
+		diskblock_mod_buffer[i].device.fp = NULL;
 
 		diskblock_mod_buffer[i].diskblock_freelist_next_buffer = NULL;
 		diskblock_mod_buffer[i].diskblock_freelist_previous_buffer = NULL;
@@ -308,6 +463,8 @@ void init_hashQueuepool()
 		diskblock_mod_buffer[i].diskblock_previous_buffer = NULL;
 	}
 
+
+	/*initialization for all disk block buffer*/
 	for (i = 0; i < MAX_DISKBLOCK_BUFFER; i++)
 	{
 		diskblock_buffer[i].mod = 0;
@@ -317,8 +474,9 @@ void init_hashQueuepool()
 
 		memset(diskblock_buffer[i].data, 0, BLOCK_SIZE);
 
-		diskblock_buffer[i].device.major = 0;
-		diskblock_buffer[i].device.minor = 0;
+		diskblock_buffer[i].device.major = '0';
+		diskblock_buffer[i].device.minor = '0';
+		diskblock_buffer[i].device.fp = NULL;
 
 		diskblock_buffer[i].diskblock_freelist_next_buffer = NULL;
 		diskblock_buffer[i].diskblock_freelist_previous_buffer = NULL;
@@ -342,7 +500,14 @@ void init_hashQueuepool()
 
 }
 
-
+/*******************************************************************
+* NAME :           display_diskblock_hashpool(void)
+*
+* DESCRIPTION :   display the buffer cache pool list
+* INPUTS :	void
+* OUTPUTS : prints the buffer pool list.
+* NOTES :
+*/
 
 void display_diskblock_hashpool(void)
 {
@@ -358,7 +523,8 @@ void display_diskblock_hashpool(void)
 		printf("\n[MOD %d]<-->", i);
 		do
 		{
-			if (diskblock_mod_buffer[i].diskblock_next_buffer == NULL) break;
+			if (diskblock_mod_buffer[i].diskblock_next_buffer == NULL) 
+				break;
 
 			printf("[%d]<-->", temp->block);
 			temp = temp->diskblock_next_buffer;
@@ -369,7 +535,14 @@ void display_diskblock_hashpool(void)
 	}
 }
 
-
+/*******************************************************************
+* NAME :           display_diskblock_freelist(void)
+*
+* DESCRIPTION :   display the free buffer pool list
+* INPUTS :	void
+* OUTPUTS : prints the free buffer pool list.
+* NOTES :
+*/
 void display_diskblock_freelist(void)
 {
 	DISKBLOCK_BUFFER *temp = diskblock_freelist;
@@ -385,7 +558,6 @@ void display_diskblock_freelist(void)
 	printf("FREELIST\n");
 
 }
-
 
 DISKBLOCK_BUFFER * serach_block_in_hash_queue(DEVICE *device, int block)
 {
@@ -478,7 +650,6 @@ DISKBLOCK_BUFFER *get_first_buffer_diskblock_freelist()
 
 }
 
-
 void remove_buffer_from_old_hashQueue(DISKBLOCK_BUFFER *buffer)
 {
 
@@ -540,7 +711,6 @@ void put_the_buffer_at_begining_of_the_freelist(DISKBLOCK_BUFFER *buffer)
 	last->diskblock_freelist_next_buffer = diskblock_freelist;
 }
 
-
 void put_the_buffer_at_the_end_of_freelist(DISKBLOCK_BUFFER *buffer)
 {
 
@@ -561,7 +731,6 @@ void put_the_buffer_at_the_end_of_freelist(DISKBLOCK_BUFFER *buffer)
 	diskblock_freelist->diskblock_freelist_previous_buffer = buffer;
 
 }
-
 
 DISKBLOCK_BUFFER *getblk(DEVICE device, int block)
 {
@@ -599,7 +768,7 @@ DISKBLOCK_BUFFER *getblk(DEVICE device, int block)
 			if (buffer->status == BUFFER_DELAY_WRITE)
 			{
 				buffer->status = BUFFER_WRITE;
-				async_controller_write(buffer->device, buffer->block, buffer->data);
+				async_controller_write_initialization(buffer->device, buffer->block, buffer->data);
 				buffer->status = BUFFER_OLD; // check
 				continue;
 			}
@@ -618,6 +787,7 @@ DISKBLOCK_BUFFER *getblk(DEVICE device, int block)
 		}
 	}
 }
+
 void brelse(DISKBLOCK_BUFFER *buffer) //input locked buffer
 {
 	// wakeup all processess which are waiting for any buffer
@@ -655,7 +825,6 @@ DISKBLOCK_BUFFER * bread(DEVICE device, int block)
 	return buffer;
 }
 
-
 void bwrite(DISKBLOCK_BUFFER *buffer)
 {
 
@@ -672,14 +841,24 @@ void bwrite(DISKBLOCK_BUFFER *buffer)
 }
 
 
-/*************************************************** BUFFER CACHE******************************************************/
+
+/*---- BUFFER CACHE DRIVER -----------------------------------------
+*   end of implementation of buffer cache Driver.
+*   NOTE : it just a simulation of buffer cache Driver using simple
+*	'C' program.
+*-------------------------------------------------------------------*/
 
 
 
 
 
 
-/*************************************************** INTERNAL REPRESENTATION OF FILES **********************************/
+/*---- INTERNAL REPRESENTATION OF FILES-----------------------------------------
+*   NOTE : it just a simulation of internal representation of file Driver using simple
+*	'C' program.
+*-------------------------------------------------------------------*/
+
+
 
 #define MAX_BOOT_BLOCK_SIZE 1024
 
@@ -772,7 +951,6 @@ typedef struct _disk_inode_
 
 } DISK_INODE;
 
-
 typedef struct _boot_block_
 {
 	char data[MAX_BOOT_BLOCK_SIZE];
@@ -806,14 +984,12 @@ typedef struct _inode_list_
 } INODE_LIST;
 INODE_LIST inode_list;
 
-
 typedef struct _data_block_
 {
 	char data[BLOCK_SIZE];
 } DATA_BLOCK;
 
 DATA_BLOCK data_block;
-
 
 typedef enum _incore_inode_status_
 {
@@ -829,7 +1005,6 @@ typedef enum _incore_inode_status_
 	INODE_NOT_MOUNT_POINT,
 
 } INCORE_INODE_STATUS;
-
 
 typedef struct _incore_inode_
 {
@@ -848,12 +1023,9 @@ typedef struct _incore_inode_
 
 } INCORE_INODE;
 
-
-
 INCORE_INODE incore_inode[MAX_INCORE_INODE_BUFFER];
 INCORE_INODE incore_inode_mod_buffer[MAX_INCORE_INODE_HEADER];
 INCORE_INODE *incore_inode_freelist = NULL;
-
 
 void put_buffer_to_respective_incore_inode_mod(INCORE_INODE *buffer)
 {
@@ -988,7 +1160,6 @@ void display_incore_inode_hashpool(void)
 
 	}
 }
-
 
 void display_incore_inode_freelist(void)
 {
@@ -1127,6 +1298,7 @@ void remove_incore_inode_from_old_hashQueue(INCORE_INODE *buffer)
 			return;
 		}
 	}
+
 	printf("\n3remove_buffer_from_old_hashQueue");
 	prev->inode_next_buffer = next;
 	next->inode_previous_buffer = prev;
@@ -1261,8 +1433,6 @@ INCORE_INODE *iget(DEVICE device, int inode_number)
 	}
 }
 
-
-
 void _free(int block_number)
 {
 	super_block.number_of_free_blocks_in_filesystem++;
@@ -1286,7 +1456,6 @@ void _free(int block_number)
 
 	return;
 }
-
 
 void ifree(int inode_number)
 {
@@ -1458,9 +1627,6 @@ INCORE_INODE *ialloc(DEVICE device)
 
 }
 
-
-
-
 DISKBLOCK_BUFFER *alloc(DEVICE device)
 {
 
@@ -1494,8 +1660,6 @@ DISKBLOCK_BUFFER *alloc(DEVICE device)
 	return buffer;
 }
 
-
-
 void mkfs(char *device_location)
 {
 	
@@ -1512,8 +1676,7 @@ void mkfs(char *device_location)
 		printf("\nError: Unable to Create Disk %s",device_location);
 		exit(0);
 	}
-	device.major = file;
-	device.minor = NULL;
+	device.fp = file;
 
 	/*Create Boot block*/
 	char *message = "this is boot block";
@@ -1524,7 +1687,6 @@ void mkfs(char *device_location)
 
 
 	/*Create Super Block*/
-	SUPER_BLOCK_OFFSET = BOOT_BLOCK_OFFSET + sizeof(super_block);
 	super_block.sizeof_filesystem = sizeof(boot_block) + sizeof(super_block) + sizeof(inode_list) + (sizeof(data_block)*MAX_DATABLOCKS);
 	super_block.number_of_free_blocks_in_filesystem = MAX_DATABLOCKS;
 	super_block.list_of_free_blocks_in_filesystem[MAX_FREE_BLOCKS_AVAILABLE];
@@ -1692,8 +1854,13 @@ void mkfs(char *device_location)
 	fclose(file);
 
 }
-/*************************************************** INTERNAL REPRESENTATION OF FILES **********************************/
 
+
+/*---- INTERNAL REPRESENTATION OF FILES-----------------------------------------
+*	end of implementation of internal represenation of file Driver.
+*   NOTE : it just a simulation of internal representation of file Driver using simple
+*	'C' program.
+*-------------------------------------------------------------------*/
 
 
 
@@ -1722,10 +1889,6 @@ int Open(char *filePath, FILE_ACCESS_PERMISSION permission, int filePermission)
 
 int main()
 {
-	BOOT_BLOCK_OFFSET = 0;
-	SUPER_BLOCK_OFFSET = BLOCK_SIZE;
-	INODE_BLOCK_OFFSET = SUPER_BLOCK_OFFSET + BLOCK_SIZE;
-	DATA_BLOCK_OFFSET = (ceil((int)(MAX_INODES / (int)((BLOCK_SIZE) / sizeof(DISK_INODE)))) * BLOCK_SIZE) + INODE_BLOCK_OFFSET;
 
 	printf("INCORE INODE SIZE %d\n", sizeof(INCORE_INODE));
 	printf("DISK INODE %d\n", sizeof(DISK_INODE));
